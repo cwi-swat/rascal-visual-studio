@@ -123,7 +123,7 @@ namespace SpellChecker
                 }
                 else if (columnName == StandardTableKeyNames.ErrorSeverity)
                 {
-                    content = __VSERRORCATEGORY.EC_MESSAGE;
+                    content = __VSERRORCATEGORY.EC_ERROR; // EC_MESSAGE;
 
                     return true;
                 }
