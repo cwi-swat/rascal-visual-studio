@@ -35,10 +35,17 @@
       <groupId>org.rascalmpl</groupId>
       <artifactId>clair</artifactId>
       <version>0.6.4</version>
-    </dependency>
+  </dependency>
+  <dependency>
+      <groupId>org.eclipse.lsp4j</groupId>
+      <artifactId>org.eclipse.lsp4j</artifactId>
+      <version>0.15.0</version>
+      <type>jar</type>
+  </dependency>
   </dependencies>
 
   <build>
+    <sourceDirectory>src/main/java</sourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
