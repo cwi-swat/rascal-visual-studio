@@ -1,12 +1,13 @@
-﻿using Microsoft.VisualStudio.Language.StandardClassification;
-using Microsoft.VisualStudio.Text;
+﻿using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Editor;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using StreamJsonRpc;
 
 namespace SpellChecker
 {
@@ -152,6 +153,15 @@ namespace SpellChecker
             // We're assuming we will only be called from the UI thread so there should be no issues with race conditions.
             if (!_isUpdating)
             {
+                Process childProcess = Process.Start(new ProcessStartInfo("cmd.exe")
+                {
+                    UseShellExecute = false,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                });
+                JsonRpc jsonRpc1 = JsonRpc.Attach(childProcess.StandardInput.BaseStream, childProcess.StandardOutput.BaseStream);
+
+
                 _isUpdating = true;
                 _uiThreadDispatcher.BeginInvoke(new Action(() => this.DoUpdate()), DispatcherPriority.Background);
             }
@@ -163,6 +173,22 @@ namespace SpellChecker
             //      Raising the TagsChanged event from the taggers needs to happen on the UI thread (because some consumers might assume it is being raised on the UI thread).
             // 
             // Updating the snapshot for the factory and calling the sink can happen on any thread but those operations are so fast that there is no point.
+
+/*
+            Process childProcess = Process.Start(new ProcessStartInfo("cmd.exe")
+            {
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+            });
+            JsonRpc jsonRpc1 = JsonRpc.Attach(childProcess.StandardInput.BaseStream, childProcess.StandardOutput.BaseStream);
+*/
+            //var formatter = new JsonMessageFormatter(Encoding.UTF8);
+            //            var handler = new LengthHeaderMessageHandler(childProcess.StandardInput.BaseStream, childProcess.StandardOutput.BaseStream, formatter);
+            //            var jsonRpc2 = new JsonRpc(handler);
+            // Add any applicable target objects/methods here, or in the JsonRpc constructor above
+            //            jsonRpc2.StartListening();
+
 
             if ((!_isDisposed) && (_dirtySpans.Count > 0))
             {
