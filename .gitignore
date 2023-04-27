@@ -6,3 +6,5 @@
 /ErrorList/C#/SpellChecker.csproj.DotSettings.user
 /ErrorList/C#/*.htm
 /ErrorList/C#/SpellChecker.sln.DotSettings.user
+/rascal-visual-studio-analysis-client/ErrorList/C#/.vs/*
+/rascal-visual-studio-analysis-client/ErrorList/C#/*
