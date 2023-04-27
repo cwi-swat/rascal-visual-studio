@@ -4,9 +4,12 @@ using Microsoft.VisualStudio.Text.Editor;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Threading.Tasks;
+using Nerdbank.Streams;
 using StreamJsonRpc;
 
 namespace SpellChecker
@@ -59,7 +62,29 @@ namespace SpellChecker
             _uiThreadDispatcher = Dispatcher.CurrentDispatcher;
 
             this.Factory = new SpellingErrorsFactory(this, new SpellingErrorsSnapshot(this.FilePath, 0));
+
+            this.StartRascal();
         }
+
+        private async void StartRascal()
+        {
+            var childProcess = new ProcessStartInfo("E:\\architectural-erosion\\rascal-visual-studio\\rascal-visual-studio-analysis-client\\ErrorList\\Server\\bin\\Debug\\Server.exe", "");
+            childProcess.UseShellExecute = false;
+            childProcess.RedirectStandardInput = true;
+            childProcess.RedirectStandardOutput = true;
+            var process = Process.Start(childProcess);
+            var stdioStream = FullDuplexStream.Splice(process.StandardOutput.BaseStream, process.StandardInput.BaseStream);
+            await ActAsRpcClientAsync(stdioStream);
+        }
+
+        private async Task ActAsRpcClientAsync(Stream stream)
+        {
+            Console.WriteLine("Connected. Sending request...");
+            var jsonRpc = JsonRpc.Attach(stream);
+            int sum = await jsonRpc.InvokeAsync<int>("Add", 3, 5);
+            Console.WriteLine($"3 + 5 = {sum}");
+        }
+
 
         internal void AddTagger(SpellCheckerTagger tagger)
         {
@@ -153,15 +178,6 @@ namespace SpellChecker
             // We're assuming we will only be called from the UI thread so there should be no issues with race conditions.
             if (!_isUpdating)
             {
-                Process childProcess = Process.Start(new ProcessStartInfo("cmd.exe")
-                {
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                });
-                JsonRpc jsonRpc1 = JsonRpc.Attach(childProcess.StandardInput.BaseStream, childProcess.StandardOutput.BaseStream);
-
-
                 _isUpdating = true;
                 _uiThreadDispatcher.BeginInvoke(new Action(() => this.DoUpdate()), DispatcherPriority.Background);
             }
@@ -173,22 +189,6 @@ namespace SpellChecker
             //      Raising the TagsChanged event from the taggers needs to happen on the UI thread (because some consumers might assume it is being raised on the UI thread).
             // 
             // Updating the snapshot for the factory and calling the sink can happen on any thread but those operations are so fast that there is no point.
-
-/*
-            Process childProcess = Process.Start(new ProcessStartInfo("cmd.exe")
-            {
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-            });
-            JsonRpc jsonRpc1 = JsonRpc.Attach(childProcess.StandardInput.BaseStream, childProcess.StandardOutput.BaseStream);
-*/
-            //var formatter = new JsonMessageFormatter(Encoding.UTF8);
-            //            var handler = new LengthHeaderMessageHandler(childProcess.StandardInput.BaseStream, childProcess.StandardOutput.BaseStream, formatter);
-            //            var jsonRpc2 = new JsonRpc(handler);
-            // Add any applicable target objects/methods here, or in the JsonRpc constructor above
-            //            jsonRpc2.StartListening();
-
 
             if ((!_isDisposed) && (_dirtySpans.Count > 0))
             {
@@ -349,160 +349,6 @@ namespace SpellChecker
             }
         }
 
-
-
-        /*
-        private void DoUpdate()
-        {
-            // It would be good to do all of this work on a background thread but we can't:
-            //      _classifier.GetClassificationSpans() should only be called on the UI thread because some classifiers assume they are called from the UI thread.
-            //      Raising the TagsChanged event from the taggers needs to happen on the UI thread (because some consumers might assume it is being raised on the UI thread).
-            // 
-            // Updating the snapshot for the factory and calling the sink can happen on any thread but those operations are so fast that there is no point.
-            if ((!_isDisposed) && (_dirtySpans.Count > 0))
-            {
-                var line = _dirtySpans[0].Start.GetContainingLine();
-
-                if (line.Length > 0)
-                {
-                    var oldSpellingErrors = this.Factory.CurrentSnapshot;
-                    var newSpellingErrors = new SpellingErrorsSnapshot(this.FilePath, oldSpellingErrors.VersionNumber + 1);
-
-                    // Go through the existing errors. If they are on the line we are currently parsing then
-                    // copy them to oldLineErrors, otherwise they go to the new errors.
-                    var oldLineErrors = new List<SpellingError>();
-                    foreach (var error in oldSpellingErrors.Errors)
-                    {
-                        Debug.Assert(error.NextIndex == -1);
-
-                        if (line.Extent.Contains(error.Span))
-                        {
-                            error.NextIndex = -1;
-                            oldLineErrors.Add(error);                           // Do not clone old error here ... we'll do that later there is no change.
-                        }
-                        else
-                        {
-                            error.NextIndex = newSpellingErrors.Errors.Count;
-                            newSpellingErrors.Errors.Add(SpellingError.Clone(error));   // We must clone the old error here.
-                        }
-                    }
-
-                    int expectedErrorCount = newSpellingErrors.Errors.Count + oldLineErrors.Count;
-                    bool anyNewErrors = false;
-
-                    var classifications = _classifier.GetClassificationSpans(line.Extent);
-                    foreach (var classification in classifications)
-                    {
-                        if (classification.ClassificationType.IsOfType(PredefinedClassificationTypeNames.Comment) || classification.ClassificationType.IsOfType("xml doc comment - text"))
-                        {
-                            string text = classification.Span.GetText();
-
-                            _box.Text = text;
-
-                            int index = 0;
-                            while (index < text.Length)
-                            {
-                                int errorStart = _box.GetNextSpellingErrorCharacterIndex(index, System.Windows.Documents.LogicalDirection.Forward);
-                                if (errorStart < 0)
-                                {
-                                    break;
-                                }
-
-                                int errorLength = _box.GetSpellingErrorLength(errorStart);
-                                if (errorLength > 1)    // Ignore any single character misspelling.
-                                {
-                                    var newSpan = new SnapshotSpan(classification.Span.Start + errorStart, errorLength);
-                                    if (SpellChecker.IsPossibleSpellingError(newSpan))
-                                    {
-                                        var oldError = oldLineErrors.Find((e) => e.Span == newSpan);
-
-                                        if (oldError != null)
-                                        {
-                                            // There was a spelling error at the same span as the old one so we should be able to just reuse it.
-                                            oldError.NextIndex = newSpellingErrors.Errors.Count;
-                                            newSpellingErrors.Errors.Add(SpellingError.Clone(oldError));    // Don't clone the old error yet
-                                        }
-                                        else
-                                        {
-                                            // Let WPF decide whether or not there are any suggested spellings.
-                                            var wpfSpellngError = _box.GetSpellingError(errorStart);
-
-                                            newSpellingErrors.Errors.Add(new SpellingError(newSpan, new List<string>(wpfSpellngError.Suggestions)));
-                                            anyNewErrors = true;
-                                        }
-                                    }
-
-                                    index = errorStart + errorLength;
-                                }
-                                else
-                                {
-                                    // How can you have a spelling error with a length of 0? Handle it gracefully in any case.
-                                    index = errorStart + 1;
-                                }
-                            }
-                        }
-                    }
-
-                    // This does a deep comparison so we will only do the update if the a different set of errors was discovered compared to what we had previously.
-                    // If there were any new errors or if we didn't see all the expected errors then there is a change and we need to update the spelling errors.
-                    if (anyNewErrors || (newSpellingErrors.Errors.Count != expectedErrorCount))
-                    {
-                        this.UpdateSpellingErrors(newSpellingErrors);
-                    }
-                    else
-                    {
-                        // There were no changes so we don't need to update our snapshot.
-                        // We have, however, dirtied the old errors by setting their NextIndex property on the assumption that we would be updating the errors.
-                        // Revert all those changes.
-                        foreach (var error in oldSpellingErrors.Errors)
-                        {
-                            error.NextIndex = -1;
-                        }
-                    }
-                }
-
-                // NormalizedSnapshotSpanCollection.Difference doesn't quite do what we need here. If I have {[5,5), [10,20)} and subtract {[5, 15)} and do a ...Difference, I
-                // end up with {[5,5), [15,20)} (the zero length span at the beginning isn't getting removed). A zero-length span at the end wouldn't be removed but, in this case,
-                // that is the desired behavior (the zero length span at the end could be a change at the beginning of the next line, which we'd want to keep).
-                var newDirtySpans = new List<Span>(_dirtySpans.Count + 1);
-                var extent = line.ExtentIncludingLineBreak;
-
-                for (int i = 0; (i < _dirtySpans.Count); ++i)
-                {
-                    Span s = _dirtySpans[i];
-                    if ((s.End < extent.Start) || (s.Start >= extent.End))          // Intentionally asymmetric
-                    {
-                        newDirtySpans.Add(s);
-                    }
-                    else
-                    {
-                        if (s.Start < extent.Start)
-                        {
-                            newDirtySpans.Add(Span.FromBounds(s.Start, extent.Start));
-                        }
-
-                        if ((s.End >= extent.End) && (extent.End < line.Snapshot.Length))
-                        {
-                            newDirtySpans.Add(Span.FromBounds(extent.End, s.End));  //This could add a zero length span (which is by design since we want to ensure we spell check the next line).
-                        }
-                    }
-                }
-
-                _dirtySpans = new NormalizedSnapshotSpanCollection(line.Snapshot, newDirtySpans);
-
-                if (_dirtySpans.Count == 0)
-                {
-                    // We've cleaned up all the dirty spans.
-                    _isUpdating = false;
-                }
-                else
-                {
-                    // Still more work to do.
-                    _uiThreadDispatcher.BeginInvoke(new Action(() => this.DoUpdate()), DispatcherPriority.Background);
-                }
-            }
-        }
-*/
         // Reject spelling errors for words that are probably code constructs embedded in a comment.
         // Reject if:
         //  Any upper case characters after the 1st character.
