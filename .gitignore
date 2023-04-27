@@ -13,3 +13,4 @@
 /rascal-visual-studio-analysis-client/ErrorList/Server/obj/*
 /rascal-visual-studio-analysis-client/ErrorList/C#/obj/*
 /rascal-visual-studio-analysis-client/ErrorList/C#/packages/*
+/rascal-visual-studio-analysis-client/ErrorList/C#/bin/*
