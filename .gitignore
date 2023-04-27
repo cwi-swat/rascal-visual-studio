@@ -8,3 +8,7 @@
 /ErrorList/C#/SpellChecker.sln.DotSettings.user
 /rascal-visual-studio-analysis-client/ErrorList/C#/.vs/*
 /rascal-visual-studio-analysis-client/ErrorList/C#/*
+/rascal-visual-studio-analysis-client/ErrorList/Client/bin/*
+/rascal-visual-studio-analysis-client/ErrorList/Client/obj/*
+/rascal-visual-studio-analysis-client/ErrorList/Server/bin/*
+/rascal-visual-studio-analysis-client/ErrorList/Server/obj/*
