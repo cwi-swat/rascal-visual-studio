@@ -8,19 +8,19 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Documents;
 
-namespace SpellChecker
+namespace ArchitecturalErosionChecker
 {
-    class SpellingErrorsSnapshot : WpfTableEntriesSnapshotBase
+    class ViolationSnapshot : WpfTableEntriesSnapshotBase
     {
         private readonly string _filePath;
         private readonly int _versionNumber;
 
         // We're not using an immutable list here but we cannot modify the list in any way once we've published the snapshot.
-        public readonly List<SpellingError> Errors = new List<SpellingError>();
+        public readonly List<Violation> Errors = new List<Violation>();
 
-        public SpellingErrorsSnapshot NextSnapshot;
+        public ViolationSnapshot NextSnapshot;
 
-        internal SpellingErrorsSnapshot(string filePath, int versionNumber)
+        internal ViolationSnapshot(string filePath, int versionNumber)
         {
             _filePath = filePath;
             _versionNumber = versionNumber;
@@ -73,7 +73,7 @@ namespace SpellChecker
                 if (columnName == StandardTableKeyNames.DocumentName)
                 {
                     // We return the full file path here. The UI handles displaying only the Path.GetFileName().
-                    content = _filePath;
+                    content = string.Format(CultureInfo.InvariantCulture, "file path {0}", _filePath);
                     return true;
                 }
                 else if (columnName == StandardTableKeyNames.ErrorCategory)
@@ -83,7 +83,7 @@ namespace SpellChecker
                 }
                 else if (columnName == StandardTableKeyNames.ErrorSource)
                 {
-                    content = "Spelling";
+                    content = "Violation";
                     return true;
                 }
                 else if (columnName == StandardTableKeyNames.Line)
@@ -103,27 +103,19 @@ namespace SpellChecker
                 }
                 else if (columnName == StandardTableKeyNames.Text)
                 {
-                    content = string.Format(CultureInfo.InvariantCulture, "Spelling: {0}", this.Errors[index].Span.GetText());
+                    content = this.Errors[index].Problem;
 
                     return true;
                 }
-                else if (columnName == StandardTableKeyNames2.TextInlines)
-                {
-                    var inlines = new List<Inline>();
+                //else if (columnName == StandardTableKeyNames2.TextInlines)
+                //{
+                //    content = "fold open?";
 
-                    inlines.Add(new Run("Spelling: "));
-                    inlines.Add(new Run(this.Errors[index].Span.GetText())
-                    {
-                        FontWeight = FontWeights.ExtraBold
-                    });
-
-                    content = inlines;
-
-                    return true;
-                }
+                //    return true;
+                //}
                 else if (columnName == StandardTableKeyNames.ErrorSeverity)
                 {
-                    content = __VSERRORCATEGORY.EC_ERROR; // EC_MESSAGE;
+                    content = __VSERRORCATEGORY.EC_WARNING; // EC_MESSAGE;
 
                     return true;
                 }
@@ -135,19 +127,19 @@ namespace SpellChecker
                 }
                 else if (columnName == StandardTableKeyNames.BuildTool)
                 {
-                    content = "SpellChecker";
+                    content = "ArchitecturalErosionChecker";
 
                     return true;
                 }
                 else if (columnName == StandardTableKeyNames.ErrorCode)
                 {
-                    content = this.Errors[index].Span.GetText();
+                    content = "Architectural violation";
 
                     return true;
                 }
                 else if ((columnName == StandardTableKeyNames.ErrorCodeToolTip) || (columnName == StandardTableKeyNames.HelpLink))
                 {
-                    content = string.Format(CultureInfo.InvariantCulture, "http://www.bing.com/search?q={0}", this.Errors[index].Span.GetText());
+                    content = "no help available";
 
                     return true;
                 }
@@ -156,20 +148,8 @@ namespace SpellChecker
                 // beyond the scope of this sample.
             }
 
-            content = null;
+            content = "unknown"; //null;
             return false;
-        }
-
-        public override bool CanCreateDetailsContent(int index)
-        {
-            return this.Errors[index].AlternateSpellings.Count > 0;
-        }
-
-        public override bool TryCreateDetailsStringContent(int index, out string content)
-        {
-            content = this.Errors[index].Alternatives;
-
-            return (content != null);
         }
     }
 }

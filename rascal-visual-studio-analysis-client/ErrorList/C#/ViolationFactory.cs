@@ -1,24 +1,24 @@
 ﻿using Microsoft.VisualStudio.Shell.TableManager;
 
-namespace SpellChecker
+namespace ArchitecturalErosionChecker
 {
-    class SpellingErrorsFactory : TableEntriesSnapshotFactoryBase
+    class ViolationFactory : TableEntriesSnapshotFactoryBase
     {
-        private readonly SpellChecker _spellChecker;
+        private readonly ArchitecturalErosionChecker _architecturalErosionChecker;
 
-        public SpellingErrorsSnapshot CurrentSnapshot { get; private set; }
+        public ViolationSnapshot CurrentSnapshot { get; private set; }
 
-        public SpellingErrorsFactory(SpellChecker spellChecker, SpellingErrorsSnapshot spellingErrors)
+        public ViolationFactory(ArchitecturalErosionChecker architecturalErosionChecker, ViolationSnapshot violation)
         {
-            _spellChecker = spellChecker;
+            _architecturalErosionChecker = architecturalErosionChecker;
 
-            this.CurrentSnapshot = spellingErrors;
+            this.CurrentSnapshot = violation;
         }
 
-        internal void UpdateErrors(SpellingErrorsSnapshot spellingErrors)
+        internal void UpdateErrors(ViolationSnapshot violation)
         {
-            this.CurrentSnapshot.NextSnapshot = spellingErrors;
-            this.CurrentSnapshot = spellingErrors;
+            this.CurrentSnapshot.NextSnapshot = violation;
+            this.CurrentSnapshot = violation;
         }
 
         #region ITableEntriesSnapshotFactory members

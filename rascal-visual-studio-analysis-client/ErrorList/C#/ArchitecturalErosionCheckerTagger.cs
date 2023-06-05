@@ -4,25 +4,25 @@ using Microsoft.VisualStudio.Text.Tagging;
 using System;
 using System.Collections.Generic;
 
-namespace SpellChecker
+namespace ArchitecturalErosionChecker
 {
-    class SpellCheckerTagger : ITagger<IErrorTag>, IDisposable
+    class ArchitecturalErosionCheckerTagger : ITagger<IErrorTag>, IDisposable
     {
-        private readonly SpellChecker _spellChecker;
-        private SpellingErrorsSnapshot _spellingErrors;
+        private readonly ArchitecturalErosionChecker _architecturalErosionChecker;
+        private ViolationSnapshot _violation;
 
-        internal SpellCheckerTagger(SpellChecker spellChecker)
+        internal ArchitecturalErosionCheckerTagger(ArchitecturalErosionChecker architecturalErosionChecker)
         {
-            _spellChecker = spellChecker;
-            _spellingErrors = spellChecker.LastSpellingErrors;
+            _architecturalErosionChecker = architecturalErosionChecker;
+            _violation = architecturalErosionChecker.LastViolation;
 
-            spellChecker.AddTagger(this);
+            architecturalErosionChecker.AddTagger(this);
         }
 
-        internal void UpdateErrors(ITextSnapshot currentSnapshot, SpellingErrorsSnapshot spellingErrors)
+        internal void UpdateErrors(ITextSnapshot currentSnapshot, ViolationSnapshot violation)
         {
-            var oldSpellingErrors = _spellingErrors;
-            _spellingErrors = spellingErrors;
+            var oldViolations = _violation;
+            _violation = violation;
 
             var h = this.TagsChanged;
             if (h != null)
@@ -31,16 +31,16 @@ namespace SpellChecker
                 int start = int.MaxValue;
                 int end = int.MinValue;
 
-                if ((oldSpellingErrors != null) && (oldSpellingErrors.Errors.Count > 0))
+                if ((oldViolations != null) && (oldViolations.Errors.Count > 0))
                 {
-                    start = oldSpellingErrors.Errors[0].Span.Start.TranslateTo(currentSnapshot, PointTrackingMode.Negative);
-                    end = oldSpellingErrors.Errors[oldSpellingErrors.Errors.Count - 1].Span.End.TranslateTo(currentSnapshot, PointTrackingMode.Positive);
+                    start = oldViolations.Errors[0].Span.Start.TranslateTo(currentSnapshot, PointTrackingMode.Negative);
+                    end = oldViolations.Errors[oldViolations.Errors.Count - 1].Span.End.TranslateTo(currentSnapshot, PointTrackingMode.Positive);
                 }
 
-                if (spellingErrors.Count > 0)
+                if (violation.Count > 0)
                 {
-                    start = Math.Min(start, spellingErrors.Errors[0].Span.Start.Position);
-                    end = Math.Max(end, spellingErrors.Errors[spellingErrors.Errors.Count - 1].Span.End.Position);
+                    start = Math.Min(start, violation.Errors[0].Span.Start.Position);
+                    end = Math.Max(end, violation.Errors[violation.Errors.Count - 1].Span.End.Position);
                 }
 
                 if (start < end)
@@ -53,16 +53,16 @@ namespace SpellChecker
         public void Dispose()
         {
             // Called when the tagger is no longer needed (generally when the ITextView is closed).
-            _spellChecker.RemoveTagger(this);
+            _architecturalErosionChecker.RemoveTagger(this);
         }
 
         public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
         public IEnumerable<ITagSpan<IErrorTag>> GetTags(NormalizedSnapshotSpanCollection spans)
         {
-            if (_spellingErrors != null)
+            if (_violation != null)
             {
-                foreach (var error in _spellingErrors.Errors)
+                foreach (var error in _violation.Errors)
                 {
                     if (spans.IntersectsWith(error.Span))
                     {

@@ -8,32 +8,36 @@ using Microsoft.VisualStudio.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Diagnostics;
+using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
+using MsVsShell = Microsoft.VisualStudio.Shell;
+using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
 
-namespace SpellChecker
+namespace ArchitecturalErosionChecker
 {
-    /// <summary>
-    /// Factory for the <see cref="ITagger{T}"/>. There will be one instance of this class/VS session.
-    /// 
-    /// It is also the <see cref="ITableDataSource"/> that reports spelling errors in comments.
-    /// </summary>
     [Export(typeof(IViewTaggerProvider))]
     [TagType(typeof(IErrorTag))]
     [ContentType("text")]
     [TextViewRole(PredefinedTextViewRoles.Document)]
     [TextViewRole(PredefinedTextViewRoles.Analyzable)]
-    internal sealed class SpellCheckerProvider : IViewTaggerProvider, ITableDataSource
+    internal sealed class ArchitecturalErosionCheckerProvider : IViewTaggerProvider, ITableDataSource
     {
         internal readonly ITableManager ErrorTableManager;
         internal readonly ITextDocumentFactoryService TextDocumentFactoryService;
         internal readonly IClassifierAggregatorService ClassifierAggregatorService;
 
-        const string _spellCheckerDataSource = "SpellChecker";
+        const string _architecturalErosionCheckerDataSource = "ArchitecturalErosionChecker";
 
         private readonly List<SinkManager> _managers = new List<SinkManager>();      // Also used for locks
-        private readonly List<SpellChecker> _spellCheckers = new List<SpellChecker>();
+        private readonly List<ArchitecturalErosionChecker> _architecturalErosionChecker = new List<ArchitecturalErosionChecker>();
+
+        // test
+        private IVsGeneratorProgress codeGeneratorProgress;
 
         [ImportingConstructor]
-        internal SpellCheckerProvider([Import]ITableManagerProvider provider, [Import] ITextDocumentFactoryService textDocumentFactoryService, [Import] IClassifierAggregatorService classifierAggregatorService)
+        internal ArchitecturalErosionCheckerProvider([Import]ITableManagerProvider provider, [Import] ITextDocumentFactoryService textDocumentFactoryService, [Import] IClassifierAggregatorService classifierAggregatorService)
         {
             this.ErrorTableManager = provider.GetTableManager(StandardTables.ErrorsTable);
             this.TextDocumentFactoryService = textDocumentFactoryService;
@@ -47,36 +51,23 @@ namespace SpellChecker
                                                    StandardTableColumnDefinitions.Text, StandardTableColumnDefinitions.DocumentName, StandardTableColumnDefinitions.Line, StandardTableColumnDefinitions.Column);
         }
 
-        /// <summary>
-        /// Create a tagger that does spell checking on the view/buffer combination.
-        /// </summary>
         public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag
         {
             ITagger<T> tagger = null;
-
-            // Only attempt to spell check on the view's edit buffer (and multiple views could have that buffer open simultaneously so
-            // only create one instance of the spell checker.
             if ((buffer == textView.TextBuffer) && (typeof(T) == typeof(IErrorTag)))
             {
-                var spellChecker = buffer.Properties.GetOrCreateSingletonProperty(typeof(SpellChecker), () => new SpellChecker(this, textView, buffer));
-
-                // This is a thin wrapper around the SpellChecker that can be disposed of without shutting down the SpellChecker
-                // (unless it was the last tagger on the spell checker).
-                tagger = new SpellCheckerTagger(spellChecker) as ITagger<T>;
+                var architecturalErosionChecker = buffer.Properties.GetOrCreateSingletonProperty(typeof(ArchitecturalErosionChecker), () => new ArchitecturalErosionChecker(this, textView, buffer));
+                tagger = new ArchitecturalErosionCheckerTagger(architecturalErosionChecker) as ITagger<T>;
             }
 
             return tagger;
         }
 
-        #region ITableDataSource members
         public string DisplayName
         {
             get
             {
-                // This string should, in general, be localized since it is what would be displayed in any UI that lets the end user pick
-                // which ITableDataSources should be subscribed to by an instance of the table control. It really isn't needed for the error
-                // list however because it autosubscribes to all the ITableDataSources.
-                return "Spell Checker";
+                return "ArchitecturalErosionChecker";
             }
         }
 
@@ -84,7 +75,7 @@ namespace SpellChecker
         {
             get
             {
-                return _spellCheckerDataSource;
+                return _architecturalErosionCheckerDataSource;
             }
         }
 
@@ -102,7 +93,6 @@ namespace SpellChecker
             // but it is always possible for 3rd parties to write code that will want to subscribe.
             return new SinkManager(this, sink);
         }
-        #endregion
 
         public void AddSinkManager(SinkManager manager)
         {
@@ -111,11 +101,9 @@ namespace SpellChecker
             lock (_managers)
             {
                 _managers.Add(manager);
-
-                // Add the pre-existing spell checkers to the manager.
-                foreach (var spellChecker in _spellCheckers)
+                foreach (var architecturalErosionChecker in _architecturalErosionChecker)
                 {
-                    manager.AddSpellChecker(spellChecker);
+                    manager.AddArchitecturalErosionChecker(architecturalErosionChecker);
                 }
             }
         }
@@ -130,31 +118,29 @@ namespace SpellChecker
             }
         }
 
-        public void AddSpellChecker(SpellChecker spellChecker)
+        public void AddArchitecturalErosionChecker(ArchitecturalErosionChecker architecturalErosionChecker)
         {
             // This call will always happen on the UI thread (it is a side-effect of adding or removing the 1st/last tagger).
             lock (_managers)
             {
-                _spellCheckers.Add(spellChecker);
-
-                // Tell the preexisting managers about the new spell checker
+                _architecturalErosionChecker.Add(architecturalErosionChecker);
                 foreach (var manager in _managers)
                 {
-                    manager.AddSpellChecker(spellChecker);
+                    manager.AddArchitecturalErosionChecker(architecturalErosionChecker);
                 }
             }
         }
 
-        public void RemoveSpellChecker(SpellChecker spellChecker)
+        public void RemoveArchitecturalErosionChecker(ArchitecturalErosionChecker architecturalErosionChecker)
         {
             // This call will always happen on the UI thread (it is a side-effect of adding or removing the 1st/last tagger).
             lock (_managers)
             {
-                _spellCheckers.Remove(spellChecker);
+                _architecturalErosionChecker.Remove(architecturalErosionChecker);
 
                 foreach (var manager in _managers)
                 {
-                    manager.RemoveSpellChecker(spellChecker);
+                    manager.RemoveArchitecturalErosionChecker(architecturalErosionChecker);
                 }
             }
         }
@@ -169,5 +155,6 @@ namespace SpellChecker
                 }
             }
         }
+
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.VisualStudio.Shell.TableManager;
 using System;
 
-namespace SpellChecker
+namespace ArchitecturalErosionChecker
 {
     /// <summary>
     /// Every consumer of data from an <see cref="ITableDataSource"/> provides an <see cref="ITableDataSink"/> to record the changes. We give the consumer
@@ -9,31 +9,31 @@ namespace SpellChecker
     /// </summary>
     class SinkManager : IDisposable
     {
-        private readonly SpellCheckerProvider _spellingErrorsProvider;
+        private readonly ArchitecturalErosionCheckerProvider _architecturalErosionCheckerProvider;
         private readonly ITableDataSink _sink;
 
-        internal SinkManager(SpellCheckerProvider spellingErrorsProvider, ITableDataSink sink)
+        internal SinkManager(ArchitecturalErosionCheckerProvider architecturalErosionCheckerProvider, ITableDataSink sink)
         {
-            _spellingErrorsProvider = spellingErrorsProvider;
+            _architecturalErosionCheckerProvider = architecturalErosionCheckerProvider;
             _sink = sink;
 
-            spellingErrorsProvider.AddSinkManager(this);
+            architecturalErosionCheckerProvider.AddSinkManager(this);
         }
 
         public void Dispose()
         {
             // Called when the person who subscribed to the data source disposes of the cookie (== this object) they were given.
-            _spellingErrorsProvider.RemoveSinkManager(this);
+            _architecturalErosionCheckerProvider.RemoveSinkManager(this);
         }
 
-        internal void AddSpellChecker(SpellChecker spellChecker)
+        internal void AddArchitecturalErosionChecker(ArchitecturalErosionChecker architecturalErosionChecker)
         {
-            _sink.AddFactory(spellChecker.Factory);
+            _sink.AddFactory(architecturalErosionChecker.Factory);
         }
 
-        internal void RemoveSpellChecker(SpellChecker spellChecker)
+        internal void RemoveArchitecturalErosionChecker(ArchitecturalErosionChecker architecturalErosionChecker)
         {
-            _sink.RemoveFactory(spellChecker.Factory);
+            _sink.RemoveFactory(architecturalErosionChecker.Factory);
         }
 
         internal void UpdateSink()
